@@ -1,0 +1,30 @@
+[
+    {
+      "predicates": [
+        "Path=/books/add",
+        "Method=POST"
+      ],
+      "filters": [
+        "StripPrefix=0"
+      ],
+      "tags": [
+        "books"
+      ],
+      "ssoEnabled": true,
+      "tokenRelay": true
+    },
+    {
+        "predicates": [
+          "Path=/books/{id}",
+          "Method=GET"
+        ],
+        "filters": [
+          "StripPrefix=0"
+        ],
+        "tags": [
+          "books"
+        ],
+        "ssoEnabled": true,
+        "tokenRelay": true
+      }
+]

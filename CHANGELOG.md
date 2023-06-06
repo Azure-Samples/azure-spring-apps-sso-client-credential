@@ -1,13 +1,6 @@
-## [project-title] Changelog
+## Azure Spring Apps SSO Client Credentials Changelog
 
-<a name="x.y.z"></a>
-# x.y.z (yyyy-mm-dd)
+<a name="1.0.0"></a>
+# 1.0.0 (2023-06-09)
 
-*Features*
-* ...
-
-*Bug Fixes*
-* ...
-
-*Breaking Changes*
-* ...
+Complete Sample Project
