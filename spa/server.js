@@ -4,7 +4,7 @@ const axios = require('axios');
 const app = express();
 const msal = require('@azure/msal-node');
 const port = process.env.PORT || 3000;
-const SpringCloudGatewayURL = "<Spring cloud Gateway URL>"
+const SpringCloudGatewayURL = "<URL exposed by app gateway-service>"
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 app.set('view engine', 'ejs');
 
@@ -21,7 +21,7 @@ const msalConfig = {
 const cca = new msal.ConfidentialClientApplication(msalConfig);
 
 const tokenRequest = {
-    scopes: ["api://<Spring Cloud Gateway app registration ClientID>/.default"]
+    scopes: ["<Application ID URI of Books>/.default"]
 };
 // Function to get token
 async function getToken() {

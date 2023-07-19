@@ -18,13 +18,13 @@ public class BooksController{
     private final BooksService booksService;
 
 
-    @PreAuthorize("hasRole('Task.Read')")
+    @PreAuthorize("hasAuthority('APPROLE_Task.Read')")
     @GetMapping("books/{id}")
     public Book getBook(@PathVariable Long id){
         return booksService.getBook(id);
     }
 
-    @PreAuthorize("hasRole('Task.Write')")
+    @PreAuthorize("hasAuthority('APPROLE_Task.Write')")
     @PostMapping("/books/add")
     public Book addBook(@RequestBody Book book){
         return booksService.saveBook(book);

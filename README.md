@@ -13,7 +13,7 @@ This example shows the procedure of ensuring secure communication between a clie
 The architecture of this example is demonstrated by a Books Application, consisting of the following components:
 
 - [Books SPA](/spa/): This Single Page Application (SPA), hosted in Azure App service, interacts with the Books Microservice for adding or searching for books.
-- [Books Microservice](/service/): 
+- [Books Microservice](/books-service/): 
     - A Spring Boot REST microservice hosted in Azure Spring Apps, this service operates behind a Spring Cloud Gateway. It stores book information in an H2 database.
     - The Books Microservice exposes two REST endpoints: 
         - 'Add books' for saving books in an H2 database.
