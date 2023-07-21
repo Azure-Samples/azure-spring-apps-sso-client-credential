@@ -204,7 +204,7 @@ public class BooksController{
     private final BooksService booksService;
 
     @PreAuthorize("hasAuthority('APPROLE_Books.Read')")
-    @GetMapping("{id}")
+    @GetMapping("/{id}")
     public Book getBook(@PathVariable Long id){
         return booksService.getBook(id);
     }
