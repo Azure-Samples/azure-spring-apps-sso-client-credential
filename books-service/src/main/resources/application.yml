@@ -6,8 +6,8 @@ spring:
       active-directory:
         enabled: true
         credential:
-          client-id: ed89fb04-ca69-45dc-ae83-990b7f21cb11
-        app-id-uri: api://books
+          client-id: <your-application-ID-of-Books>
+        app-id-uri: <your-application-ID-URI-of-Books>
 management:
   endpoint:
     metrics:
