@@ -1,144 +1,111 @@
-# Comprehensive Security with Azure Spring Apps, Application security principal, Spring Cloud Gateway SSO, and Spring Security
+# Comprehensive Security with Azure Spring Apps, Application security principal, Spring Cloud Gateway, Spring Security, and Spring Cloud Azure Starter Active Directory.
 
 
-This example shows the procedure of ensuring secure communication between a client application and a microservice that is hosted on Azure Spring Apps and shielded behind a Spring Cloud Gateway. Under these conditions, the client app will be verified as a security principal to initiate contact with the microservice deployed on Azure Spring Apps, via the Azure Spring Apps Spring Cloud Gateway. The methodology employs Spring Cloud Gateway's Single Sign-On feature for the processes of authentication and authorization, realized through the execution of the [client credentials flow](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow).
+This example shows the procedure of securing communication between a client application and a microservice application that is hosted on Azure Spring Apps and shielded behind a gateway app. The client application will be verified as a security principal to initiate contact with the microservice deployed on Azure Spring Apps, via the app built with [Spring Cloud Gateway](https://docs.spring.io/spring-cloud-gateway/docs/current/reference/html/). The methodology employs Spring Cloud Gateway's Token Relay feature, and Spring Security's Resource Server feature for the processes of authentication and authorization, realized through the execution of the [client credentials flow](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow).
 
 ## Prerequisites
 
-- Azure Spring Apps Entreprise tier Instance, In which an application called books-service is created refer to this [documentation](https://learn.microsoft.com/en-us/azure/spring-apps/quickstart-deploy-apps-enterprise) for provisionning
-- App service with Node runtime, refer to this [documentation](https://learn.microsoft.com/en-us/azure/app-service/quickstart-nodejs?tabs=windows&pivots=development-environment-azure-portal) for provisionning
+- Azure Spring Apps Consumption plan Instance, in which an application called books-service is created refer to this [documentation](https://learn.microsoft.com/azure/spring-apps/quickstart-provision-standard-consumption-service-instance) for provisionning.
 
 ## Architecture Overview 
 
 The architecture of this example is demonstrated by a Books Application, consisting of the following components:
 
-- [Books SPA](/spa/): This Single Page Application (SPA), hosted in Azure App service, interacts with the Books Microservice for adding or searching for books.
-- [Books Microservice](/service/): 
-    - A Spring Boot REST microservice hosted in Azure Spring Apps, this service operates behind a Spring Cloud Gateway. It stores book information in an H2 database.
-    - The Books Microservice exposes two REST endpoints: 
+- [Books SPA](/spa): This locally hosted single page application (SPA) interacts with the book service's gateway through the public access to add or search for books.
+- Books Microservice: 
+    - A `gateway-service` app hosted in Azure Spring Apps, it interacts with `books-service` app through internal access.
+    - A `books-service` app hosted in Azure Spring Apps. It stores book information in an H2 database.
+    - The Books service app exposes two RESTful endpoints:
         - 'Add books' for saving books in an H2 database.
-        - 'Get Book' for retrieving a book by ID.    
+        - 'Get Book' for retrieving a book by ID.
 
-![The Big Picture](assets/big-picture.png) <br/>
+  ![The Big Picture](assets/big-picture.png) <br/>
   Overview of Books Application
 
 ## Security Flow
 
-The communication between The Books SPA and the Books Microservice is secured through the [client credentials flow](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow), utilizing the Spring Cloud Gateway. This flow is as follows:
+The communication between The Books SPA and the Books Microservice is secured through the [client credentials flow](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow), utilizing the gateway app. This flow is as follows:
 
 ![Authentication Flow](assets/AuthenticationFlow.png)<br/>
 
-1- The Books SPA requests a token from Azure AD to call the Spring Cloud Gateway. This token represents the Books SPA App registration as an application security principal. <br/>
-2 - The Books SPA transmits a request with the acquired token to the Books Microservice through the Spring Cloud Gateway. <br/>
-3 - The Spring Cloud Gateway validates the received token. <br/>
-4 - The Spring Cloud Gateway redirects the request (along with the token) to the Books Microservice. <br/>
-5 - The Books Microservice validates the token and authorizes the request. <br/>
+1 - The Books SPA requests a token from Azure AD to call the `gateway-service` app. This token represents the Books SPA App registration as an application security principal. <br/>
+2 - The Books SPA transmits a request with the acquired token to the `books-service` app through the `gateway-service` app. <br/>
+3 - The `gateway-service` app validates the received token. <br/>
+4 - The `gateway-service` app redirects the request (along with the token) to the `books-service` app. <br/>
+5 - The `books-service` validates the token and authorizes the request. <br/>
 
 ## Environment Setup
 
-### Spring Cloud Gateway Configuration 
+### Register the Books application
 
-#### App Registration
-First, we will configure the Spring Cloud Gateway app registration in Azure Portal:
-- Navigate to App registrations -> New registration 
- ![ Gateway App registration ](assets/Gateway-APP-Reg-Create.png)
+#### Register application
 
-- After the Application is registered, retrieve the client ID from the app registration overview. This client ID will be necessary for configuring Spring Cloud Gateway.
+First, we will configure the `books-service` app registration in Azure Portal.
 
-- As we are using the client credentials flow, and the microservices behind Spring Cloud Gateway will be called by client applications security principals (i.e., the Books SPA in our case), we will define App roles for our Spring Cloud Gateway App registration. App roles are used for assigning permissions to users or apps, and are the recommended way for assigning permissions in the client credentials flow. For more details, refer to the [app roles documentation](https://learn.microsoft.com/en-us/azure/active-directory/develop/howto-add-app-roles-in-azure-ad-apps). 
+1. If you have access to multiple tenants, use the **Directory + subscription** filter to select the tenant in which you want to register an application.
 
-- We will add 2 App roles: 'Task.Write' (allows the SPA to add books) and 'Task.Read' (allows the SPA to read a book by ID). To add these roles, navigate to the app registration, click on App roles and then on Add new Roles. <br/>
- ![ Add App role](assets/Add-new-Role-GW-APP.png)  <br/>
+1. Search for and Select **Azure Active Directory**.
 
-- Next, add a client secret for the Spring Cloud Gateway App registration. To do so, navigate to Certificate & Secrets and click on New Client Secret. Make sure to copy your client secret as it will be needed in your Spring Cloud Gateway configuration. 
+1. Under **Manage**, select **App registrations** > **New registration**.
 
-#### Spring Cloud Gateway Configuration:
+1. Enter a name for your application in the **Name** field, for example `Books`. Users of your app might see this name, and you can change it later.
 
-##### Endpoint Assignment
-- In Azure portal, go to your Azure Spring Apps instance, select Spring Cloud Gateway, and enable endpoint assignment on the overview page.
-  ![ SCG Endpoint ](assets/spring-cloud-gateway-endpoint.png)  <br/>
+1. For **Supported account types**, select **Accounts in this organizational directory only **.
 
-- Copy the endpoint URL, as it will be required for configuring the Redirect URI for the Spring Cloud Gateway app registration.
+1. Select **Register** to create the application.
 
+- After the Application is registered, retrieve the client ID from the app registration overview. This client ID will be necessary for configuring `books-service` app.
 
-##### SSO Configuration
-- Under the configuration tab, in the SSO section, configure the following:
-    - Scope: .default, as we are using the client credentials flow (and not using a user sign in),  permissions will be managed with App roles, the .default scope is suitable in this case. For more details, refer to [.default scope documentation](https://learn.microsoft.com/EN-US/azure/active-directory/develop/scopes-oidc#the-default-scope) and [.default with client credentials](https://learn.microsoft.com/EN-US/azure/active-directory/develop/scopes-oidc#client-credentials-grant-flow-and-default).
-    - ClientId: The client Id of the Spring Cloud Gateway App registration created in previous steps.
-    - ClientSecret: The client secret of Id of the Spring Cloud Gateway App registration created in previous steps.
-    - Issuer URI: https://login.microsoftonline.com/< your tenant ID >/v2.0. This URI asserts as its Issuer Identifier.
-    ![SSO Config](assets/SSO-CONGIG-GW.png)
+#### Add App Roles
 
-##### Routing Configuration
+As we are using the client credentials flow, and the microservices will be called by client applications security principals (i.e., the Books SPA in our case), we will define App roles for our `books-service` App registration. App roles are used for assigning permissions to users or apps, and are the recommended way for assigning permissions in the client credentials flow. For more details, refer to the [app roles documentation](https://learn.microsoft.com/en-us/azure/active-directory/develop/howto-add-app-roles-in-azure-ad-apps). 
 
-- The routing in the Spring Cloud Gateway will be configured next. In our routes configuration, we will enable SSO (for token validation for the route) and enable tokenRelay (so the token will be passed with the request to the destination microservice). The routes file is configured as follows, and is located under service/routes.
+We will add 2 App roles: 'Books.Write' (allows the SPA to add books) and 'Books.Read' (allows the SPA to read a book by ID).
 
-```json 
-[
-    {
-      "predicates": [
-        "Path=/books/add",
-        "Method=POST"
-      ],
-      "filters": [
-        "StripPrefix=0"
-      ],
-      "tags": [
-        "books"
-      ],
-      "ssoEnabled": true,
-      "tokenRelay": true
-    },
-    {
-        "predicates": [
-          "Path=/books/{id}",
-          "Method=GET"
-        ],
-        "filters": [
-          "StripPrefix=0"
-        ],
-        "tags": [
-          "books"
-        ],
-        "ssoEnabled": true,
-        "tokenRelay": true
-      }
-]
+1. On the app **Overview** page, look for the **Application (client) ID** value, and then record it for later use. You need it to configure the YAML configuration file for this project.
 
-```
-To apply these routes in spring cloud gateway execute the following command :
+1. Under **Manage**, select **Expose an API**, find the **Application ID URI** at the beginning of the page, select **Add**.
 
-```
-az spring gateway route-config update -g <resours-group> --name <route-name> --app-name <app-name>  --routes-file routes/books.json --service <Azure spring apps instance>
+1. On the **Edit application ID URI** page, accept the proposed Application ID URI (`api://{client ID}`) or use a meaningful name instead of the client ID,
+   such as `api://books`, and select **Save**.
 
-```
-##### Redirect URI Addition 
-As you have enabled SSO in Spring Cloud Gateway, Azure Ad will need to redirect the authentication response to Spring Cloud Gateway after validating the authentication token. Thus, you will need to add a redirect URI in your App registration. To do so:
-- Go to the Spring Cloud Gateway app registration created earlier, click Authentication.
-- Click on Add platform, choose Web and enter the url < your spring cloud gateway endpoint url >/login/oauth2/code/sso.
+1. Under **Manage**, select **App roles** > **Create app role**, and then enter the following information:
 
-### Client App Configuration
+    - For **Display name**, enter `Write`.
+    - For **Allowed member types**, select **Applications**.
+    - For **Value**, enter `Books.Write`.
+    - For **Description**, enter `Adding books`.
 
-#### Client App registration 
+1. Repeat the previous step to add another app role: `Books.Read`.
 
-To enable The books SPA to call the books service with a token serving for authentication and authorization, we should first create an Identity for the books SPA, this identity is represented with the client APP registration. To create the client App registration follow these steps :
+   ![app toles](assets/app-roles.png)
 
-1. In Azure portal go to App registrations and create a new App registration :
-    ![client-app-reg](assets/client-APP-REG.png) <br/>
-    Copy the Client Id of the APP registration, as we will need it in the SPA's code for acquiring the token to call the books microservice.
+### Register the SPA application
 
-2. Create a secret for the SPA App registration, Go to Certificate & Secrets and create a new Secret, copy the generated secret as you will need it in the SPA's code for acquiring the token to call the books microservice.
+The Books RESTful APIs acts as a resource server, which is protected by Azure AD. Before acquiring an access token, it's required to register another application in Azure AD and grant permissions to the client application, which is named `SPA`.
 
-3. Assign permissions to the SPA's app registration to call the books service through the Spring cloud gateway, those permissions are represented by the Spring cloud Gateway's App Registration Roles, to do so :
-    - In the SPA's app registration go to API permissions -> Add a permission
-        ![request permission](assets/request-api-permissions-1.png) <br/>
-    - Under My APIs Tab select the Spring cloud Gateway App registration <br/>
-        ![request permission](assets/request-api-permissions-2.png) <br/>
-    - Select the Task.Read and Task.Write Roles <br/>
-        ![request permission](assets/request-api-permissions-3.png) <br/>
+1. Go back to your tenant in **Azure Active Directory**.
 
-4. Applications are authorized to call APIs when they are granted permissions by users/admins as part of the consent process, as we are using using the client credentials flow, we will grant Admin consent for these permissions, to do that click on Grant Admin consent (Admin rights is required for granting Admin consent) 
-    ![grant admin consent](assets/admin-consent-spa.png)
+1. Under **Manage**, select **App registrations** > **New registration**.
+
+1. Enter a name for your application in the **Name** field, for example `SPA`.
+
+1. For **Supported account types**, use the default **Accounts in this organizational directory only**.
+
+1. Select **Register** to create the application.
+
+1. On the app **Overview** page, look for the **Application (client) ID** value, and then record it for later use. You need it to acquire access token.
+
+1. Select **API permissions** > **Add a permission** > **APIs my organization uses**. Select the `Books` application that you registered earlier,
+   then select the Permissions **Books.Read** and **Books.Write**, and select **Add permissions**.
+
+1. Select **Grant admin consent for {your-tenant-name}** to grant admin consent for the permissions you added.
+
+   ![app toles](assets/api-permissions.png)
+
+1. Navigate to **Certificates & secrets** and select the **New client secret**. On the **Add a client secret** page, enter a description for the secret, select an expiration date, and select **Add**.
+
+1. Look for the **Value** of the secret, and then record it for later use. You need it to acquire access token.
 
 #### Client Application code
 
@@ -179,17 +146,16 @@ async function getToken() {
 
 Call the Books service with the aquired token
 ```javascript
-    const url = SpringCloudGatewayURL + `/books/${id}`;
+const url = SpringCloudGatewayURL + `/books/${id}`;
 
-    try {
-        const token = await getToken();
-        const apiResponse = await axios.get(url, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        });
-    }
-    ...
+try {
+    const token = await getToken();
+    const apiResponse = await axios.get(url, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+}
 ```
 ##### Client Application code deploy
 
@@ -197,91 +163,60 @@ To Deploy the books SPA to a the node App Service, refer to this [documentation]
 
 ### Books Microservice Configuration
 
-With A Zero trust perspective, security is validated at every level, since  Enabled SSO with token relay, In this section we will configure the books microservice for validating the recieved authentication token and validating if the request is authorized for each Rest Endoint, for that we are going to use spring security
+With A Zero trust perspective, security is validated at every level, and the "gateway-service" app does the token relay to the `books-service` app. In this section we will configure the `books-service` for validating the received authentication token and validating if the request is authorized for each Restful API endpoint, for that we are going to use Spring Cloud Azure Starter Active Directory.
 
 #### Spring Security configuration 
 
-Fist we will add dependency for spring securty in pom.xml file 
+Fist we will add dependency for security in pom.xml file:
 
 ```xml
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
-       </dependency>
+<dependency>
+  <groupId>com.azure.spring</groupId>
+  <artifactId>spring-cloud-azure-starter-active-directory</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+</dependency>
 ```
 
-We will then configure spring security Issuer URI
+We will then configure Spring Cloud Azure Active Directory properties:
 
 ```yml
 spring:
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: https://login.microsoftonline.com/< your tenant ID> /v2.0
+  cloud:
+    azure:
+      active-directory:
+        enabled: true
+        credential:
+          client-id: <your-application-ID-of-Books>
+        app-id-uri: <your-application-ID-URI-of-Books>
 
 ```
 
-We will then Add the security configuration, 
+On the controller  we will put the needed Role for being able to call this endpoint:
 
 ```java
-@Configuration
-@EnableWebSecurity
-@EnableGlobalMethodSecurity(prePostEnabled = true)
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http
-            .authorizeRequests()
-            .anyRequest().authenticated()
-            .and()
-            .oauth2ResourceServer()
-            .jwt()
-            .jwtAuthenticationConverter(jwtAuthenticationConverter());
-    }
-
-    private JwtAuthenticationConverter jwtAuthenticationConverter() {
-        
-        JwtGrantedAuthoritiesConverter converter = new JwtGrantedAuthoritiesConverter();
-        converter.setAuthoritiesClaimName("roles");
-        converter.setAuthorityPrefix("ROLE_"); 
-    
-        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(converter);
-        return jwtAuthenticationConverter;
-    }
-}
-```
-On the controller  we will put the needed Role for being able to call this endpoint 
-
-```java
-
 @RestController
+@RequestMapping("/books")
 @RequiredArgsConstructor
 public class BooksController{
     private final BooksService booksService;
 
-
-    @PreAuthorize("hasRole('Task.Read')")
-    @GetMapping("books/{id}")
+    @PreAuthorize("hasAuthority('APPROLE_Books.Read')")
+    @GetMapping("/{id}")
     public Book getBook(@PathVariable Long id){
         return booksService.getBook(id);
     }
 
-    @PreAuthorize("hasRole('Task.Write')")
-    @PostMapping("/books/add")
+    @PreAuthorize("hasAuthority('APPROLE_Books.Write')")
+    @PostMapping("/add")
     public Book addBook(@RequestBody Book book){
         return booksService.saveBook(book);
     }
-
 }
 ```
 
 ##### Books-Service Application code deploy
 
-In order to deploy the Spring APPS books-service application refer to this [documentation](https://learn.microsoft.com/en-us/azure/spring-apps/quickstart-deploy-apps-enterprise#deploy-polyglot-applications-with-tanzu-build-service) 
+In order to deploy the Spring APPS books-service application refer to this [documentation](https://learn.microsoft.com/azure/spring-apps/quickstart-deploy-microservice-apps) 
